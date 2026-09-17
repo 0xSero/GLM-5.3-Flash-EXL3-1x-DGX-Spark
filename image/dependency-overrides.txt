@@ -1,0 +1,11 @@
+torch==2.13.0+cu130
+torchvision==0.28.0
+torchaudio==2.11.0
+transformers==5.16.1
+flashinfer-python==0.6.17
+apache-tvm-ffi==0.1.11
+nvidia-cutlass-dsl[cu13]==4.6.2
+nvidia-cutlass-dsl-libs-base==4.6.2
+nvidia-cutlass-dsl-libs-core==4.6.2
+nvidia-cutlass-dsl-libs-cu12==4.6.2
+nvidia-cutlass-dsl-libs-cu13==4.6.2

@@ -1,0 +1,6 @@
+.env
+models/
+mtp/
+*.log
+__pycache__/
+*.pyc
