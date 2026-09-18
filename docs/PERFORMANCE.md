@@ -59,13 +59,34 @@ byte-identical to the proven recipe (sampled cells, exact token-ID accounting):
 | E2 | MNBT 2048 → 7168 | **prefill 465.0 vs 427.0 (+8.9 %)** | **prefill 474.2 vs 454.2 (+4.4 %)**, decode 18.75 (unchanged), acc 0.985 | **shipped as default** |
 | E3 | `kda_prefill_backend` b12x → flashkda (at MNBT 7168) | prefill 470.5 vs 465.0 | prefill 474.4 vs 474.2; decode 18.92; acc 0.993 | **neutral — stays b12x** |
 | E4 | MNBT 7168 → 16384 | — | — | **fails: CUDA OOM in FP8 weight post-processing at util 0.93** |
+| E5 | image v2: fused-MoE per-expert row cap 128 → 1024 (env) | **prefill 550.4 (+18.4 %)**, decode 19.13 | prefill 487.0 (+2.7 %); acc 0.987–0.996 | **root cause confirmed** |
+| E6 | row cap 128 → 4096 | **prefill 570.5 (+22.6 %)**, decode 18.94 | **prefill 520.1 (+9.7 %)**, TTFT 252.4 s, decode 18.75–18.86 | **shipped as default (image v2)** |
+| E7 | row cap → 7168 (hard bound) | — | — | **fails: engine init with 2.2 GB temps does not fit at util 0.93** |
 
-Conclusion: the scheduler knobs are exhausted. The remaining ~475 → 600 tok/s
-gap is inside the EXL3 grouped-MoE prefill GEMM itself; the identified fix is
-the custom fat-grouped prefill kernel (see below). Receipts:
-`receipts/e1-trellisM128-*`, `receipts/e2-mnbt7168-*`,
-`receipts/e3-flashkda-*`, `receipts/e4-mnbt16384-fail-log.txt` (all experiment
-containers preserved, not removed).
+### The fat-expert fallback: root cause and fix
+
+`exllamav3_ext.exl3_moe` serves each expert from packed trellis weights inside
+one fused launch, but it derives `max_tokens_per_expert` from
+`temp_state_g.size(1)` and **silently skips any expert with more routed rows**.
+The shipped overlay sized its temp buffers at 128 rows, so during prefill —
+where ~57k routed slots spread over 288 experts puts most experts above 128 —
+the fused kernel skipped nearly every expert and the overlay routed them into
+`apply_exl3_python_loop`: a per-expert Python loop with `.tolist()` host syncs.
+That loop was the ~475 tok/s prefill wall. The fix is an env-tunable row
+capacity (`EXL3_FUSED_TEMP_ROWS`, default 4096 in image **v2**), allocated once
+at load before CUDA graph capture. Dose–response across E5/E6 confirms the
+mechanism: raising the cap monotonically lifts prefill (474 → 487 → 520 at
+131k) while decode and acceptance stay flat.
+
+Remaining gap to 600 at 131k (~13 %): the fused kernel assigns whole experts
+to concurrency groups, so a fat expert serializes on one group. The upstream
+2× kit's `EXL3_FAT_GROUPED` kernels tile fat experts across CTAs (port scope:
+`overlay/exl3_fat_moe.cu` 656 L + `exl3_fat_gemm.{cu,cuh}` +
+`build_exl3_fat_moe_ext.py`; the ext **compiles cleanly against this image's
+exllamav3 0.0.43 in 25 s** — verified — but integrating it means rewiring the
+grouped-fat call path in this fork's overlay, which is a different lineage from
+upstream's). Receipts: `receipts/e5-*`, `receipts/e6-*`; E7 fail log on the
+experiment host.
 
 ### Cold-start validation of the published recipe (2026-09-18)
 

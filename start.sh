@@ -43,7 +43,7 @@ if [ -f .env ]; then
     done < <(grep -v '^\s*$' .env)
 fi
 
-IMAGE="${IMAGE:-ghcr.io/0xsero/glm53-b12x-exl3:b12x-mtp-1xspark-v1}"
+IMAGE="${IMAGE:-ghcr.io/0xsero/glm53-b12x-exl3:b12x-mtp-1xspark-v2}"
 WEIGHTS_REPO="${WEIGHTS_REPO:-0xSero/GLM-5.3-Flash-EXL3-TR3-2.0bpw}"
 WEIGHTS_DIR="${WEIGHTS_DIR:-$SCRIPT_DIR/models/$(basename "$WEIGHTS_REPO")}"
 MTP_DIR="${MTP_DIR:-$SCRIPT_DIR/mtp}"
@@ -163,6 +163,7 @@ launch() {
         -e VLLM_EXL3_TRELLIS_MAX_M="$TRELLIS_MAX_M" \
         -e VLLM_EXL3_PREFILL_TRELLIS=1 \
         -e EXL3_FUSED_MOE=1 \
+        -e EXL3_FUSED_TEMP_ROWS="${EXL3_FUSED_TEMP_ROWS:-4096}" \
         "$IMAGE" \
         --model /model --served-model-name glm-5.3-flash \
         --host 0.0.0.0 --port "$PORT" --tensor-parallel-size 1 \

@@ -23,17 +23,14 @@ matched-sustained (≥ 30 s). Full ladder and method:
 
 | Input tokens | Decode tok/s | Prefill tok/s | TTFT | Acceptance |
 |---:|---:|---:|---:|---:|
-| 1,023 | 19.19 | 391.5 | 2.61 s | 0.98 |
-| 4,095 | 19.22 | 427.0 | 9.59 s | 0.98 |
-| 16,383 | 18.95 | 442.9 | 36.99 s | 0.98 |
-| 65,535 | 18.82 | 454.3 | 144.26 s | 0.99 |
-| 131,071 | 19.00 | 454.2 | 288.58 s | 0.99 |
-| 199,999 | 18.70 | 452.7 | 441.83 s | 0.99 |
-| 260,095 | 18.89 | 451.8 | 575.65 s | 1.00 |
+| 4,095 | 18.94 | **570.5** | 7.36 s | 0.98 |
+| 131,071 | 18.75 | **520.1** | 252.4 s | 0.99 |
 
-Receipt: [docs/receipts/mtp-ctx-sweep-full-20260917T160505Z.json](docs/receipts/mtp-ctx-sweep-full-20260917T160505Z.json)
-(sha256 `a8023b2a9574…`, manifest in [docs/RECEIPTS.sha256](docs/RECEIPTS.sha256)).
-Decode spread across the whole window is 2.7 %. KV pool: **727,449 tokens** at `fp8_ds_mla` (2.77× a full
+With the full-window ladder (baseline image v1) and every intermediate tuning
+step: [docs/PERFORMANCE.md](docs/PERFORMANCE.md). Decode is flat across the
+whole 1,023 → 260,095 window (18.6–19.2 tok/s, 2.7 % spread); prefill is
+receipted at each tuning step (image v2 raises the fused-MoE per-expert row
+capacity, removing a host-syncing fat-expert fallback — +22.6 % at 4k). KV pool: **727,449 tokens** at `fp8_ds_mla` (2.77× a full
 262,144-token request). Weights on disk: ~102 GiB; engine load 102.29 GiB.
 
 ## Requirements
