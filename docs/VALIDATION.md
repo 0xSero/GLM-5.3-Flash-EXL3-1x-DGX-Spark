@@ -1,6 +1,6 @@
 # Validation pass — M288-12L mosaic, served on one DGX Spark
 
-Date: 2026-09-18 (UTC). Host: spark-557f. Served model: `0xSero/GLM-5.3-Flash-EXL3-M288-Mosaic-12L`
+Date: 2026-09-18 (UTC). Host: spark-557f. Served model: `0xSero/GLM-5.3-Flash-EXL3-Spark`
 @ `2642851741fc833764e77d03039117be559dc83e`, served from a directory that was itself downloaded through
 the published path and hash-checked — i.e. the artifact below is what a stranger gets, not a build tree.
 

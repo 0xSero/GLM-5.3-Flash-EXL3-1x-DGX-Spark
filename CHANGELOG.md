@@ -60,7 +60,7 @@ The M288-12L mosaic is now reachable from this kit, and its weights are publishe
   verified against the model repo's own sha256 manifest), census preflight,
   then SGLang with the flag set its confirming run was measured with.
 - **Weights published**:
-  `0xSero/GLM-5.3-Flash-EXL3-M288-Mosaic-12L` @
+  `0xSero/GLM-5.3-Flash-EXL3-Spark` @
   `2642851741fc833764e77d03039117be559dc83e`, 12 shards, 96,105,136,306 B,
   every file hash-verifiable. Previously the mosaic was rebuild-only.
 - **Stated limit, not a bug**: this kit's vLLM/MTP overlay rejects `mul1` at

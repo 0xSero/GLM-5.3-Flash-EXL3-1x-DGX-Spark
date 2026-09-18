@@ -49,7 +49,7 @@ base. 96.1 GB, codebook `mul1`.
 
 | | |
 |---|---|
-| weights | [`0xSero/GLM-5.3-Flash-EXL3-M288-Mosaic-12L`](https://huggingface.co/0xSero/GLM-5.3-Flash-EXL3-M288-Mosaic-12L) @ `2642851741fc833764e77d03039117be559dc83e` |
+| weights | [`0xSero/GLM-5.3-Flash-EXL3-Spark`](https://huggingface.co/0xSero/GLM-5.3-Flash-EXL3-Spark) @ `2642851741fc833764e77d03039117be559dc83e` |
 | recipe repo | https://github.com/0xSero/glm-5.3-flash-spark-mosaic |
 | runtime | SGLang `exl3-plain`, image `ghcr.io/0xsero/glm53-flash-exl3-plain:2p05-sglang-mul1-r1` (id `c65c840f1908…`) |
 | launch | `./start-mosaic.sh` in this repo |

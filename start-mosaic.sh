@@ -16,7 +16,7 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-HF_REPO="${GLM53_MOSAIC_REPO:-0xSero/GLM-5.3-Flash-EXL3-M288-Mosaic-12L}"
+HF_REPO="${GLM53_MOSAIC_REPO:-0xSero/GLM-5.3-Flash-EXL3-Spark}"
 HF_PIN="${GLM53_MOSAIC_PIN:-2642851741fc833764e77d03039117be559dc83e}"
 MODEL="${GLM53_MOSAIC_DIR:-$HERE/models/mosaic-12l}"
 IMG="${GLM53_MOSAIC_IMG:-ghcr.io/0xsero/glm53-flash-exl3-plain:2p05-sglang-mul1-r1}"
