@@ -1,0 +1,33 @@
+Four probe logs were hashed into docs/RECEIPTS.sha256 but never published, because
+.gitignore excludes *.log and they were never force-added. They were written to
+working paths outside the repository and are no longer present on either host
+(searched 2026-09-18 on the 557f Spark and locally; not recoverable).
+
+They are removed from docs/RECEIPTS.sha256 so that every entry there names a file
+a cloner actually has and can verify. Their recorded digests are preserved here,
+because the fact that these probes ran is part of the record even when the raw
+logs are gone.
+
+Recorded sha256 (from docs/RECEIPTS.sha256 as of commit 30474a6):
+
+3bce5e206df1914aa7fffa2022ad46f157b3399ff7b557fc16639957c604eeba  receipts/e1-trellisM128-probe.log
+6955d8356a4bc7b6ec171a23cba7140cf910a4f600a60c316958f9a7bba8dedb  receipts/e2-mnbt7168-probe.log
+ab2c9c2dbed3547e6e78a436d07017d415247583504bfd63fc845b12b6300042  receipts/e3-flashkda-probe.log
+a3d10037744b134405966adb94e98b15f137a405762795c6edeef1a523aa8a7e  receipts/e8b-split-regression-probe.log
+
+What survives of each experiment, in this repository:
+
+- E1 (trellis M-cap 128): receipts/e1-trellisM128-RUN.txt, and the verdict row in
+  docs/PERFORMANCE.md.
+- E2 (MNBT 7168): receipts/e2-mnbt7168-20260918T002128Z.json and
+  receipts/e2-mnbt7168-RUN.txt.
+- E3 (flashkda prefill backend): receipts/e3-flashkda-20260918T010313Z.json and
+  the verdict row in docs/PERFORMANCE.md.
+- E8b (virtual-expert split regression): the numbers and the rejection are in
+  docs/PERFORMANCE.md; the raw probe log is gone. The split implementation it
+  measured is not shipped.
+
+One .log receipt was recoverable and is now published, because docs/PERFORMANCE.md
+cites it and a citation must resolve:
+
+0e3bc67ac3fc15b5aac70b7c18e90f327ec1acd20305e5b594baf7c461d87f7b  receipts/mtp-serve-probe-b12x-20260917T122134Z.log

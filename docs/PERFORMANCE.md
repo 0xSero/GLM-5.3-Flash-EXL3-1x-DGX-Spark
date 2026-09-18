@@ -63,6 +63,7 @@ byte-identical to the proven recipe (sampled cells, exact token-ID accounting):
 | E6 | row cap 128 → 4096 | **prefill 570.5 (+22.6 %)**, decode 18.94 | **prefill 520.1 (+9.7 %)**, TTFT 252.4 s, decode 18.75–18.86 | **shipped as default (image v2)** |
 | E7 | row cap → 7168 (hard bound) | — | — | **fails: engine init with 2.2 GB temps does not fit at util 0.93** |
 | E8 | virtual-expert splitting (≤cap chunks, stock kernel) | prefill 435.9, decode 16.24 | prefill 352.1, decode 15.81 | **rejected: per-call bookkeeping + 8064-entry kernel walk outweigh load balancing at concurrency 6** |
+| E9 | K2/K3 grouped fat-expert kernels (v3 overlay, `EXL3_FAT_GROUPED=1`, TR 4096) | prefill 434.5, decode 19.14 | prefill 463.3, decode 18.52–20.04, acc 0.970–0.996 | **invalid — no overlay was mounted, so this re-measured the baseline; the grouped path is still unmeasured (see correction below)** |
 
 ### The fat-expert fallback: root cause and fix
 
@@ -103,6 +104,35 @@ Conclusion: with scheduler knobs exhausted and the split rejected on evidence,
 kernels — a bounded, well-understood kernel project (compile path proven, call
 path mapped: `layer._exl3_ptrs` tables already match the extension's expected
 inputs), not further launcher tuning.
+
+### Correction: E9 measured the baseline, not the grouped kernels (2026-09-18)
+
+E9 was meant to A/B the v3 grouped kernels (`EXL3_FAT_GROUPED=1`,
+`EXL3_FUSED_TEMP_ROWS=4096`) against image v2. It did not. The launcher's
+`docker run` block mounts no overlay over the container's `exl3.py` (the header
+comment still documents one, and the env vars are still exported), so nothing
+read those variables: the image's module has 0 occurrences of
+`EXL3_FAT_GROUPED` and 0 of `EXL3_FUSED_TEMP_ROWS`, and hardcodes
+`TEMP_ROWS_FUSED = 128` — the pre-E5 row cap, i.e. the fat-expert fallback
+still in place. The guard asserted the **base image id**, which is exactly what
+a dropped overlay mount leaves untouched, so it passed while the intent was
+violated. A guard that passes under both the intent and its violation is not a
+guard.
+
+E9's numbers (prefill 434.5 @4k, 463.3 @131k; decode 18.5–20.0; acceptance
+0.970–0.996) are a valid re-measurement of the **baseline** recipe and are
+recorded as nothing more. **The v3 K2/K3 grouped kernels remain
+performance-unmeasured**: verified functional (they compile and serve), never
+benchmarked in a valid A/B. The regression E9 appeared to show does not exist
+as evidence.
+
+A corrected test must fail closed on the overlay — grep a sentinel in the host
+file *and* the env-var names inside the running container before timing — and
+must pick a row cap that actually exercises the grouped path. At TR=4096 the
+over-cap tail is ~199 mean routed rows per expert, so nearly every expert is
+already absorbed by the fused kernel and the A/B is close to a no-op by
+construction; **TR=256** is the honest setting because it forces essentially all
+experts down the grouped path. Record: `receipts/quarantine-e9-invalid.md`.
 
 ### Cold-start validation of the published recipe (2026-09-18)
 

@@ -4,3 +4,6 @@ mtp/
 *.log
 __pycache__/
 *.pyc
+
+# receipt logs are evidence: allow them past the *.log ignore rule
+!docs/receipts/*.log

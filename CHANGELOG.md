@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.1.1 — 2026-09-18
+
+Two honesty corrections to the experiment record. No shipped behaviour changes.
+
+- **E9 did not measure the grouped kernels.** Its launcher exports
+  `EXL3_FAT_GROUPED=1` and `EXL3_FUSED_TEMP_ROWS=4096` but mounts no overlay over
+  the container's `exl3.py`, so both variables were read nowhere (the image's
+  module has 0 occurrences of either and hardcodes `TEMP_ROWS_FUSED = 128`).
+  The guard asserted the base image id, which a dropped overlay mount leaves
+  unchanged, so it passed. E9's numbers are a valid re-measurement of the
+  **baseline**, and the v3 K2/K3 grouped kernels remain performance-unmeasured.
+  Full record and the fail-closed test design:
+  `docs/receipts/quarantine-e9-invalid.md` and [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+- **`docs/RECEIPTS.sha256` now lists only files a cloner has.** Four probe logs
+  had been hashed but never published (`.gitignore` excludes `*.log` and they
+  were not force-added); they are no longer present on either host. Their
+  digests are preserved in `docs/receipts/UNAVAILABLE.txt` with what survives of
+  each experiment. One cited log was recovered and is now published —
+  `receipts/mtp-serve-probe-b12x-20260917T122134Z.log`, whose sha256 matches the
+  digest recorded before it went missing. The manifest verifies 13/13, and
+  `!docs/receipts/*.log` keeps evidence past the ignore rule.
+
 ## 1.1.0 — 2026-09-18
 
 The M288-12L mosaic is now reachable from this kit, and its weights are published.
