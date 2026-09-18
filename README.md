@@ -47,8 +47,8 @@ Decode spread across the whole window is 2.7 %. KV pool: **727,449 tokens** at `
 ## Quick start
 
 ```bash
-git clone https://github.com/0xSero/glm-5.3-flash-1x-dgx-spark.git
-cd glm-5.3-flash-1x-dgx-spark
+git clone https://github.com/0xSero/GLM-5.3-Flash-EXL3-2x-DGX-Sparks.git
+cd GLM-5.3-Flash-EXL3-2x-DGX-Sparks
 ./start.sh
 ```
 
@@ -119,10 +119,11 @@ Copy `.env.example` to `.env` to override. Defaults are the measured recipe.
 
 ## Honest limits
 
-- ~450 tok/s single-stream prefill: the upstream 2× recipe reaches ~1,500 tok/s
-  with a custom grouped-MoE prefill kernel (`EXL3_FAT_GROUPED`), 4 bpw weights,
-  and two GPUs. Porting that kernel to this 1× image is the known path to a big
-  prefill gain and is tracked in [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
+- ~465–475 tok/s single-stream prefill (MNBT 7168, E2-tuned): the upstream 2×
+  recipe reaches ~1,500 tok/s with a custom grouped-MoE prefill kernel
+  (`EXL3_FAT_GROUPED`), 4 bpw weights, and two GPUs. Porting that kernel to
+  this 1× image is the known path to a big prefill gain and is tracked in
+  [docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 - Decode is tuned for single stream (`MAX_NUM_SEQS=1`); concurrent clients share it.
 - The B12X path is a pinned fork, not upstream vLLM; the image pins exact digests.
 

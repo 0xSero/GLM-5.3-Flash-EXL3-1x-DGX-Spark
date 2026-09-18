@@ -50,18 +50,19 @@ capture receipts (target + draft), `/v1/models` reports `glm-5.3-flash`,
 ## Squeeze log (prefill work, 2026-09-17/18)
 
 Baseline recipe (`VLLM_EXL3_TRELLIS_MAX_M=32`, MNBT 2048) prefills at
-~450 tok/s saturating. Knobs under test, one variable at a time, everything
-else byte-identical to the proven recipe (sampled cells, exact token-ID
-accounting):
+~450 tok/s saturating. Knobs tested one variable at a time, everything else
+byte-identical to the proven recipe (sampled cells, exact token-ID accounting):
 
-| Exp | Change | Result (131,071-token cell) | Verdict |
-|---|---|---|---|
-| E1 | `TRELLIS_MAX_M` 32 → 128 | prefill 451.6 vs 454.2 tok/s; decode 18.75 vs 19.00; acceptance 0.976 vs 0.99 | **no gain — default stays 32** |
-| E2 | MNBT 2048 → 7168 | (running; this table updates with the receipt) | pending |
+| Exp | Change | 4,095-token cell | 131,071-token cell | Verdict |
+|---|---|---|---|---|
+| E1 | `TRELLIS_MAX_M` 32 → 128 | prefill 393.3 vs 427.0 | prefill 451.6 vs 454.2; decode 18.75 vs 19.00; acc 0.976 vs 0.99 | **no gain — stays 32** |
+| E2 | MNBT 2048 → 7168 | **prefill 465.0 vs 427.0 (+8.9 %)** | **prefill 474.2 vs 454.2 (+4.4 %)**, decode 18.75 (unchanged), acc 0.985 | **shipped as default** |
 
-The trellis tile cap is therefore not the prefill bottleneck. Receipts:
-`receipts-557f/prefill-e1-trellisM128-20260917T232819Z/` (probe log with all
-four cells; E1 container `glm53-k2-mtp-b12x-d2-e1` preserved, not removed).
+Tuned recipe (what `start.sh` now ships): MNBT 7168, trellis cap 32 —
+~465–475 tok/s prefill with decode untouched. The trellis tile cap is not the
+prefill bottleneck. Receipts: `receipts/e1-trellisM128-*` and
+`receipts/e2-mnbt7168-*` (probe logs with all cells; experiment containers
+preserved, not removed).
 
 For scale: the 2× upstream kit reaches ~1,500 tok/s prefill via a custom
 grouped-MoE prefill kernel (`EXL3_FAT_GROUPED`, gather/gate-up/down fused into

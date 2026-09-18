@@ -1,0 +1,10 @@
+E2 start 20260918T000125Z MNBT=7168 rec=receipts-557f/prefill-e2-mnbt7168-20260918T000125Z
+stopped own container glm53-k2-mtp-b12x-d2 at 2026-09-18T00:02:56Z receipt=receipts-557f/prefill-e2-mnbt7168-20260918T000125Z
+ready at 2026-09-18T00:21:28Z
+=== target 4096: actual_prompt_tokens=4095
+     warmup   50s wall | MATCHED_SUSTAINED  35.99s | TOTAL  19.04 tok/s | native  19.06 tok/s | prefill  321.1 tok/s | ttft   13.96s | out 686 | acc 0.978 | ok True
+  measured1   45s wall | MATCHED_SUSTAINED  36.59s | TOTAL  18.97 tok/s | native  18.97 tok/s | prefill  465.0 tok/s | ttft    8.97s | out 695 | acc 0.983 | ok True
+=== target 131072: actual_prompt_tokens=131071
+     warmup  322s wall | MATCHED_SUSTAINED  37.67s | TOTAL  18.74 tok/s | native  18.72 tok/s | prefill  460.5 tok/s | ttft  284.97s | out 707 | acc 0.981 | ok True
+  measured1  313s wall | MATCHED_SUSTAINED  36.58s | TOTAL  18.75 tok/s | native  18.72 tok/s | prefill  474.2 tok/s | ttft  276.74s | out 687 | acc 0.985 | ok True
+E2 DONE 2026-09-18T00:33:51Z; e1 stopped (preserved), original container restarted
