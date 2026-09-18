@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.1.2 — 2026-09-18
+
+A full validation pass over the mosaic, served from a directory fetched through the published path and
+hash-checked: [docs/VALIDATION.md](docs/VALIDATION.md). No shipped behaviour changes.
+
+- **Speed, measured cleanly.** Prefill **503.5 tok/s marginal** (r² 0.9999) and decode **10.79 tok/s
+  mean** (10.61–10.94 across a 238× range of prompt length), from a streaming sweep with a unique nonce
+  opening every prompt so radix caching cannot flatter it. The earlier ladder (`FILLER × N` prompts,
+  each rung a prefix of the next) is kept as the record of that method error, with the server's
+  `#cached-token` accounting as the explanation.
+- **The cache demonstration failed, which is itself the finding.** A repeated 14 k prompt in a saturated
+  pool was re-prefilled twice rather than served; the sweep before it had inserted 616,956 tokens into a
+  595,200-token pool. Prefix reuse works normally when the pool has room, as the vision probes on the
+  same server show (one step, 64 new tokens, 7,936 cached). See
+  [docs/receipts/cache-demo-analysis.md](docs/receipts/cache-demo-analysis.md).
+- **Vision at full resolution.** 4096×4096 accepted → 7,921 image tokens, 99 % of the artifact's declared
+  8,000-per-image ceiling, with coordinate-accurate reading at 512² and 2048². A verified end-to-end word
+  answer was not obtained: the probe's task does not fit its token budget. Stated as a gap.
+- **MTP: the gate was the first blocker, not the only one.** With the `mul1` codebook gate relaxed, the
+  MTP recipe passes validation and dies at weight loading —
+  `KeyError: 'layers.0.mlp.down_proj.mul1'` at `glm5next/nvidia/model.py:904` — because the mosaic's keys
+  are `model.language_model.layers.N.mlp.experts.E.*` (turboderp/SGLang lineage) while the vLLM loader
+  expects `layers.N.mlp.down_proj.*`. Layer 0 is a stock layer, so this is a naming-lineage mismatch.
+  MTP here needs a key remap, then the `mul1` decode path:
+  [docs/receipts/m1-findings.md](docs/receipts/m1-findings.md).
+- Context: `max_model_len 262144` declared, 236,510 prompt tokens exercised end to end, 128,000-token
+  output budget accepted, 8,192 reasoning tokens in one response without server truncation,
+  deterministic at `temperature 0`.
+
 ## 1.1.1 — 2026-09-18
 
 Two honesty corrections to the experiment record. No shipped behaviour changes.

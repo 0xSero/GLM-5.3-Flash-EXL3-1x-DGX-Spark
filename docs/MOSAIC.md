@@ -18,7 +18,26 @@ Gate: `exl3.py:568` in both MTP-capable images (`glm53-reap-native-mtp:…-r4-ex
 `glm53-b12x-exl3:jovian-3aada677-r3`). The codebook is not a label — it selects the decode math (the
 trellis codebook tables consumed by `LinearEXL3`), so this is not a flag flip.
 
-Consequence: **the mosaic has no MTP here**, which is exactly why its decode is ~9–10 tok/s against this
+**That gate is the first blocker, not the only one.** The M1 experiment (2026-09-18) relaxed exactly that
+gate and launched this kit's MTP recipe against the mosaic. Validation then passed and the engine
+proceeded to weight loading, where it died at the first MoE layer:
+
+```
+File ".../vllm/models/glm5next/nvidia/model.py", line 904, in load_weights
+    param = params_dict[name]
+KeyError: 'layers.0.mlp.down_proj.mul1'
+```
+
+The mosaic descends from the turboderp/SGLang artifact and its keys are
+`model.language_model.layers.N.mlp.experts.E.*`; this kit's vLLM loader addresses experts as
+`layers.N.mlp.down_proj.*`. Layer 0 is a stock (non-substituted) layer, so the mismatch is a property of
+the artifact's naming lineage rather than of the mosaic's 12 upgraded layers. Bringing MTP to the mosaic
+therefore needs **a checkpoint-key remap first, then the `mul1` decode path** — code work with a known
+entry point (`model.py:904`), not a research problem, but more than the gate. Receipts:
+[`VALIDATION.md`](VALIDATION.md) §7 and
+[`receipts/m1-findings.md`](receipts/m1-findings.md).
+
+Consequence: **the mosaic has no MTP here**, which is exactly why its decode is ~10.8 tok/s against this
 kit's 18.7–19.2. Details and the full argument:
 [mosaic repo → `MTP-CODEBOOK-BLOCKER.md`](https://github.com/0xSero/glm-5.3-flash-spark-mosaic/blob/main/mosaic-gatea/MTP-CODEBOOK-BLOCKER.md).
 
