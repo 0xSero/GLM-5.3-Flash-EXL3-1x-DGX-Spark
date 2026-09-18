@@ -62,6 +62,7 @@ byte-identical to the proven recipe (sampled cells, exact token-ID accounting):
 | E5 | image v2: fused-MoE per-expert row cap 128 → 1024 (env) | **prefill 550.4 (+18.4 %)**, decode 19.13 | prefill 487.0 (+2.7 %); acc 0.987–0.996 | **root cause confirmed** |
 | E6 | row cap 128 → 4096 | **prefill 570.5 (+22.6 %)**, decode 18.94 | **prefill 520.1 (+9.7 %)**, TTFT 252.4 s, decode 18.75–18.86 | **shipped as default (image v2)** |
 | E7 | row cap → 7168 (hard bound) | — | — | **fails: engine init with 2.2 GB temps does not fit at util 0.93** |
+| E8 | virtual-expert splitting (≤cap chunks, stock kernel) | prefill 435.9, decode 16.24 | prefill 352.1, decode 15.81 | **rejected: per-call bookkeeping + 8064-entry kernel walk outweigh load balancing at concurrency 6** |
 
 ### The fat-expert fallback: root cause and fix
 
@@ -78,15 +79,30 @@ at load before CUDA graph capture. Dose–response across E5/E6 confirms the
 mechanism: raising the cap monotonically lifts prefill (474 → 487 → 520 at
 131k) while decode and acceptance stay flat.
 
-Remaining gap to 600 at 131k (~13 %): the fused kernel assigns whole experts
-to concurrency groups, so a fat expert serializes on one group. The upstream
-2× kit's `EXL3_FAT_GROUPED` kernels tile fat experts across CTAs (port scope:
-`overlay/exl3_fat_moe.cu` 656 L + `exl3_fat_gemm.{cu,cuh}` +
-`build_exl3_fat_moe_ext.py`; the ext **compiles cleanly against this image's
-exllamav3 0.0.43 in 25 s** — verified — but integrating it means rewiring the
-grouped-fat call path in this fork's overlay, which is a different lineage from
-upstream's). Receipts: `receipts/e5-*`, `receipts/e6-*`; E7 fail log on the
-experiment host.
+Remaining gap to 600 at 131k (~13 %): what we know after E8, with evidence:
+
+- Upstream's `EXL3_FAT_GROUPED` kernels tile fat experts across CTAs and are
+  the right shape of fix, but the shipped extension is **K4-only** —
+  `exl3_fat_moe.cu` hardcodes `FM_PACKED_WORDS = 64` (int16 words per 16×16
+  **K4** tile) with no bit dispatch. This artifact is mixed **K2/K3**
+  (per-layer uniform, 2 or 3 bits), so the extension cannot be adopted as-is;
+  porting it means writing bit-templated dequant/pipeline kernels for K2/K3
+  (the ext itself does compile against this image's exllamav3 0.0.43 in 25 s —
+  verified — so only the K-generality is missing).
+- A virtual-expert splitting alternative (replicate per-expert pointer tables
+  S=⌈MNBT/cap⌉ times, split routed rows into ≤cap chunks with device-side
+  arithmetic, keep the stock kernel) was implemented and measured (E8): it
+  regresses — 435.9/352.1 tok/s prefill and 15.8–16.2 decode — because the
+  per-call split bookkeeping and the kernel's per-group walk over 1152×7
+  virtual experts cost more than the load balancing recovers at this image's
+  concurrency (6 groups). Rejected on receipts
+  (`receipts/e8b-split-regression-probe.log`).
+
+Conclusion: with scheduler knobs exhausted and the split rejected on evidence,
+600 tok/s prefill on one Spark requires the bit-templated K2/K3 grouped
+kernels — a bounded, well-understood kernel project (compile path proven, call
+path mapped: `layer._exl3_ptrs` tables already match the extension's expected
+inputs), not further launcher tuning.
 
 ### Cold-start validation of the published recipe (2026-09-18)
 
