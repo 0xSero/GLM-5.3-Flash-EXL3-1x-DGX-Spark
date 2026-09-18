@@ -57,19 +57,46 @@ byte-identical to the proven recipe (sampled cells, exact token-ID accounting):
 |---|---|---|---|---|
 | E1 | `TRELLIS_MAX_M` 32 → 128 | prefill 393.3 vs 427.0 | prefill 451.6 vs 454.2; decode 18.75 vs 19.00; acc 0.976 vs 0.99 | **no gain — stays 32** |
 | E2 | MNBT 2048 → 7168 | **prefill 465.0 vs 427.0 (+8.9 %)** | **prefill 474.2 vs 454.2 (+4.4 %)**, decode 18.75 (unchanged), acc 0.985 | **shipped as default** |
+| E3 | `kda_prefill_backend` b12x → flashkda (at MNBT 7168) | prefill 470.5 vs 465.0 | prefill 474.4 vs 474.2; decode 18.92; acc 0.993 | **neutral — stays b12x** |
+| E4 | MNBT 7168 → 16384 | — | — | **fails: CUDA OOM in FP8 weight post-processing at util 0.93** |
 
-Tuned recipe (what `start.sh` now ships): MNBT 7168, trellis cap 32 —
-~465–475 tok/s prefill with decode untouched. The trellis tile cap is not the
-prefill bottleneck. Receipts: `receipts/e1-trellisM128-*` and
-`receipts/e2-mnbt7168-*` (probe logs with all cells; experiment containers
-preserved, not removed).
+Conclusion: the scheduler knobs are exhausted. The remaining ~475 → 600 tok/s
+gap is inside the EXL3 grouped-MoE prefill GEMM itself; the identified fix is
+the custom fat-grouped prefill kernel (see below). Receipts:
+`receipts/e1-trellisM128-*`, `receipts/e2-mnbt7168-*`,
+`receipts/e3-flashkda-*`, `receipts/e4-mnbt16384-fail-log.txt` (all experiment
+containers preserved, not removed).
 
-For scale: the 2× upstream kit reaches ~1,500 tok/s prefill via a custom
-grouped-MoE prefill kernel (`EXL3_FAT_GROUPED`, gather/gate-up/down fused into
-three device-driven launches), 4 bpw weights, and two GPUs. Porting that
-kernel into this image's vLLM fork is the known big lever for a future revision;
-it is GPU-qualified multi-day work and deliberately out of scope for the first
-public cut, which prefers a receipted recipe over a faster unproven one.
+### Cold-start validation of the published recipe (2026-09-18)
+
+`./start.sh` was executed on a **fresh `git clone` of this repository** on a
+DGX Spark (image already local; weights staged; the MTP draft view derived
+on-host by `tools/prepare_mtp_draft.py`; anonymous HF fetch of the public
+weights repo verified separately). Result, measured against the server it
+launched:
+
+| Check | Result |
+|---|---|
+| Served model | `glm-5.3-flash`, `max_model_len 262144` |
+| KV pool at MNBT 7168 | 498,073 tokens = 1.90× a full 262,144-token request |
+| Decode (4,095-token cell, sampled) | **19.13 tok/s** (native counter 19.13) |
+| Prefill (4,095-token cell) | **466.8 tok/s** |
+| Draft acceptance | **0.996** cell-level; cumulative counters 909/915 = 99.3 % |
+
+Receipt: `receipts/coldstart-1xspark-20260918T021243Z.json`. The tuned recipe
+reproduces exactly through the public path.
+
+### The path to 600 tok/s prefill (port plan)
+
+The 2× upstream kit reaches ~1,500 tok/s prefill with a custom grouped-MoE
+prefill kernel. Concrete port inventory from their tree: `overlay/exl3_fat_moe.cu`
+(656 lines) + `overlay/exl3_fat_moe.cuh` + `overlay/exl3_fat_gemm.{cu,cuh}` +
+`overlay/build_exl3_fat_moe_ext.py`, replacing the per-expert host loop with
+three device-driven launches per MoE layer (gather, gate/up + SwiGLU,
+down + scatter) built from device-side segment tables. Integration point in
+this fork: the grouped-MoE prefill call path of the pinned vLLM fork's EXL3
+overlay. Multi-day, GPU-qualified work — deliberately not attempted blind in
+this release, which prefers a receipted recipe over a faster unproven one.
 
 ## Decode notes
 
