@@ -240,7 +240,37 @@ Cost estimate, stated honestly: a checkpoint-key remap into the loader's expecte
 known entry point (`model.py:904`) and is not research — but it is more than the gate, which is what the
 artifact documentation implied before this pass.
 
-## 8. Method notes
+## 8. Restore, and what the baseline actually does
+
+After M1 the script restored the standing-best server (`glm53-flash-1x-v2`) and it reached health:
+
+| Check | Result |
+|---|---|
+| `/health` | 200 |
+| `/v1/models` | `glm-5.3-flash`, `max_model_len 262144` |
+| Chat completion | answers with `finish_reason: stop` |
+| MTP counters | present and advancing (`spec_decode_num_drafts_total`, `…_accepted_tokens_total`) |
+
+Two earlier attempts to start this container had died with `torch.OutOfMemoryError` during MTP weight
+post-processing (4.50 GiB requested, 3.71 GiB free) — once while the E9 container still held the GPU and
+once while the 96 GB download filled page cache. Both are memory-pressure failures, not recipe failures;
+with the box quiet it loads.
+
+Its decode rate depends on state in a way worth stating, because a naive probe reads low:
+
+| Prompt tokens | decode tok/s | MTP acceptance |
+|---|---|---|
+| 48 | 17.06 | 80.6 % |
+| 4,026 | **19.41** | 100 % |
+| 16,028 | **19.60** | 94.3 % |
+
+The recorded 18.7–19.2 tok/s reproduces at realistic context. The first requests after a cold load
+measure ~11–12 tok/s (CUDA graph capture and kernel warmup — the server's own log ramps 6.0 → 11.7 tok/s
+over the first seconds), and a 48-token prompt gives 17.1 because the MTP draft has little context to
+condition on (80.6 % acceptance against 94–100 %). Prefill on the same cells: 4,026 tokens in 7.18 s
+(561 tok/s), 16,028 in 35.70 s (449 tok/s).
+
+## 9. Method notes
 
 - The battery ran on the live mosaic server; nothing was stopped or restarted to obtain these numbers.
 - One measurement in this pass was invalidated by its own method (the ladder in §5) and one by its own
