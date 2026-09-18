@@ -1,0 +1,10 @@
+E1 start 20260917T232819Z TM=128 rec=receipts-557f/prefill-e1-trellisM128-20260917T232819Z
+stopped own container glm53-k2-mtp-b12x-d2 at 2026-09-17T23:28:25Z receipt=receipts-557f/prefill-e1-trellisM128-20260917T232819Z
+ready at 2026-09-17T23:46:27Z
+=== target 4096: actual_prompt_tokens=4095
+     warmup   57s wall | MATCHED_SUSTAINED  35.41s | TOTAL  19.23 tok/s | native  19.01 tok/s | prefill  208.7 tok/s | ttft   21.58s | out 682 | acc 0.991 | ok True
+  measured1   46s wall | MATCHED_SUSTAINED  35.46s | TOTAL  19.18 tok/s | native  19.19 tok/s | prefill  393.3 tok/s | ttft   10.93s | out 681 | acc 0.993 | ok True
+=== target 131072: actual_prompt_tokens=131071
+     warmup  337s wall | MATCHED_SUSTAINED  35.29s | TOTAL  19.38 tok/s | native  18.76 tok/s | prefill  436.0 tok/s | ttft  302.53s | out 685 | acc 0.987 | ok True
+  measured1  327s wall | MATCHED_SUSTAINED  36.63s | TOTAL  18.75 tok/s | native  18.74 tok/s | prefill  451.6 tok/s | ttft  290.67s | out 688 | acc 0.976 | ok True
+E1 DONE 2026-09-17T23:59:41Z; e1 stopped (preserved), original container restarted

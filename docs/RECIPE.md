@@ -15,7 +15,7 @@ program's D2/C1 isolated-benchmark admission
 | `SAFETENSORS_DROP_PAGE_CACHE=1` | drop page cache after load; the 102 GiB model would otherwise evict everything else in UMA |
 | `GLM53_MTP_EXPERT_FP8=1` | FP8 expert compute in the MTP draft (nvfp4 lm-head paths explicitly off: `VLLM_MXFP8_LM_HEAD=0`, `VLLM_MTP_NVFP4_LM_HEAD=0`) |
 | `VLLM_USE_AOT_COMPILE=1`, `VLLM_USE_V2_MODEL_RUNNER=1` | AOT compile + V2 runner, part of the pinned fork's validated path on SM121 |
-| `VLLM_EXL3_TRELLIS_MIN_M=1 / MAX_M=128` | trellis dequant tile bounds: decode steps run M=1; prefill tiles up to 128 (E1; 32 was the decode-tuned default) |
+| `VLLM_EXL3_TRELLIS_MIN_M=1 / MAX_M=32` | trellis dequant tile bounds; decode runs M=1. Raising the cap to 128 (E1) measured prefill-neutral with slightly lower acceptance, so 32 stays |
 | `VLLM_EXL3_PREFILL_TRELLIS=1`, `EXL3_FUSED_MOE=1` | trellis kernels in prefill; fused MoE path |
 
 ## Attention / KV
