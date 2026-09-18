@@ -33,6 +33,24 @@ receipted at each tuning step (image v2 raises the fused-MoE per-expert row
 capacity, removing a host-syncing fat-expert fallback — +22.6 % at 4k). KV pool: **727,449 tokens** at `fp8_ds_mla` (2.77× a full
 262,144-token request). Weights on disk: ~102 GiB; engine load 102.29 GiB.
 
+## Two artifacts, two runtimes
+
+This kit serves the throughput artifact. The **M288-12L mosaic** is the quality artifact from the same
+model — 12 of 45 MoE layers at 3.05 bpw, best quality measured in the family (top-1 0.80842 vs 0.78902,
+KL −15.3 %, 32/32 panel rows) — and it **cannot run on this kit's runtime**: it is codebook `mul1`, and
+both MTP-capable overlays reject anything but `mcg` at config validation, before reading a weight. So it
+has no MTP here, and decodes at ~9–10 tok/s instead of 18.7–19.2.
+
+It is one command away on its own runtime, with published, hash-pinned weights:
+
+```bash
+./start-mosaic.sh          # download (96 GB, verified) + census + serve on :8888
+./start-mosaic.sh serve    # if the weights are already downloaded
+```
+
+Full comparison, the codebook gate with file:line, and both artifact's measured numbers:
+[docs/MOSAIC.md](docs/MOSAIC.md).
+
 ## Requirements
 
 - NVIDIA DGX Spark (GB10, SM121/a, arm64), driver ≥ 535, NVIDIA Container Toolkit
@@ -78,6 +96,7 @@ to disable.
 | `./start.sh stop` | stop the serving container (preserved, not deleted) |
 | `./start.sh restart` | stop + start |
 | `./start.sh status` | container state + API health |
+| `./start-mosaic.sh` | the M288-12L mosaic instead of the MTP artifact (SGLang, no MTP — see [docs/MOSAIC.md](docs/MOSAIC.md)) |
 | `./start.sh logs` | follow engine logs |
 | `./download.sh` | weights download only (same as `./start.sh download`) |
 
