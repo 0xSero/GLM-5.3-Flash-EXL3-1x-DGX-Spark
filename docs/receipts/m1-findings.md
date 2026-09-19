@@ -66,3 +66,18 @@ documentation previously implied.
 recorded in `RUN.txt`. The mosaic's SGLang container was stopped (not removed) at 17:40:15Z with its
 `docker inspect` preserved in the receipt directory, so the mosaic can be brought back with
 `docker start glm53-mosaic-test`.
+## Correction — 2026-09-19
+
+The cost estimate above is wrong on its central point. There is no checkpoint-key remap to do.
+
+`first_k_dense_replace = 3`, so `model.language_model.layers.0.mlp` is a **dense** MLP with no experts,
+and the mosaic's index really does contain `model.language_model.layers.0.mlp.down_proj.mul1`. The
+loader was not misaddressing an expert tensor: it reached a quantized dense layer that the routed-
+experts-only overlay does not implement, and fell through to `params_dict[name]`.
+
+Counted from the artifact's own index, the tensors in that position are 128 attention projections, 129
+shared experts, 9 dense-MLP tensors (layers 0–2), 172 vision-tower tensors, `layers.45.eh_proj` and
+`lm_head` — all EXL3 `mul1`, none of them routed experts. The remaining work is therefore an EXL3
+`LinearMethod` for plain linears (plus an image rebuild for the fused MoE kernel's mul1 instances),
+not a remap. The codebook decode path itself is done and receipted:
+`mul1-overlay-20260919T085502Z.txt`, code in `overlays/exl3-mul1/`.

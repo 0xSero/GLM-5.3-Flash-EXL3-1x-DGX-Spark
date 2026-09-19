@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.2.0 — 2026-09-19
+
+The `mul1` codebook gate is fixed and the mosaic's real blocker chain is measured, on a GB10 against
+the published weights: [overlays/exl3-mul1/](overlays/exl3-mul1/), receipt
+[docs/receipts/mul1-overlay-20260919T085502Z.txt](docs/receipts/mul1-overlay-20260919T085502Z.txt).
+
+- **The MTP runtime's EXL3 overlay now accepts `mul1`.** The codebook selects the decode math end to
+  end: `LinearEXL3` is built with `mul1=` and `exl3_moe` receives the real
+  `(gate_mcg, gate_mul1, …)` flags instead of six hardcoded `True, False`. Marker parameters are named
+  after the codebook (`w13_mul1` / `w2_mul1`), which is also what lets vLLM's generic expert mapping
+  resolve `…gate_proj.mul1`, and marker validation checks `0x83DCD12D` rather than the mcg constant.
+  The `mcg` path is unchanged.
+- **Mixed-precision layers are allocated per layer.** A mosaic's `bits` is an average (2.05); the
+  config now distils a per-layer rate from the artifact's `tensor_storage` ledger. On the published
+  mosaic that recovers 30 layers at 2 bpw and 12 at 3 bpw — layers 3, 32, 33, 36–44, exactly the
+  published composition — instead of under-allocating the upgraded layers' trellis.
+- **Verified on hardware.** `LinearEXL3` decodes both mosaic rates (layer 4 `K=2`, layer 3 `K=3`), and
+  the same bytes decoded as `mcg` differ by 1.6× — proof the codebook is math, not a label.
+- **Correction: the earlier MTP diagnosis was wrong.** `KeyError: 'layers.0.mlp.down_proj.mul1'` was
+  read in 1.1.2 as a naming-lineage mismatch between `experts.E.*` and `layers.N.mlp.down_proj.*`.
+  With `first_k_dense_replace = 3`, layer 0 has no experts: it is a dense MLP, and the mosaic really
+  does ship that tensor. No key remap is needed; the runtime simply has no loader for the artifact's
+  non-expert quantized tensors.
+- **The two remaining blockers, counted.** (1) The image's pinned exllamav3 0.0.43 fused MoE kernel
+  raises `MoE kernel: Only mcg codebook is currently supported`; upstream already selects mul1
+  (`cb_idx = gate_mul1 ? 1 : 0`), so this is an image rebuild. (2) Beyond its 37,152 routed-expert
+  trellis tensors the mosaic also quantizes 128 attention projections, 129 shared experts, 9 dense-MLP
+  tensors, 172 vision-tower tensors, `layers.45.eh_proj` and `lm_head`, all of which this runtime hands
+  to `UnquantizedLinearMethod`. An EXL3 `LinearMethod` for plain linears is the bulk of the work left.
+
 ## 1.1.2 — 2026-09-18
 
 A full validation pass over the mosaic, served from a directory fetched through the published path and

@@ -1,0 +1,50 @@
+# mul1 overlay verification — receipts
+#
+# method: the MTP runtime image's rootfs was unpacked (OCI whiteouts applied) and its
+#         python/torch/exllamav3_ext run directly on a rented DGX Spark (vast.ai GB10, no docker
+#         daemon available in that container). The overlay under test is overlays/exl3-mul1/exl3.py
+#         on PYTHONPATH ahead of the image's own copy.
+# probes: overlays/exl3-mul1/probes/{probe_mul1_linear,probe_mul1_fused_moe,probe_mosaic_coverage}.py
+#         (paths below are the run-time copies; MOSAIC_DIR was the verified 96.1 GB download)
+# host: aarch64 NVIDIA GB10, 580.173.02
+# date: 2026-09-19T08:55:02Z
+# image: ghcr.io/0xsero/glm53-b12x-exl3:b12x-mtp-1xspark-v2 (rootfs extracted, run without docker)
+# artifact: 0xSero/GLM-5.3-Flash-EXL3-Spark @ 2642851741fc833764e77d03039117be559dc83e
+
+$ python3 t_mul1.py
+codebook support: ('mcg', 'mul1') mul1 marker -2082680531
+layer 4 (stock 2-bit): trellis (256, 128, 32) K=2 marker=-2082680531
+   LinearEXL3 mcg? False mul1? True K 2
+   forward (4, 2048) finite True std 1.2529
+   mcg-vs-mul1 relative difference: 1.635 (must be large)
+layer 3 (upgraded 3-bit): trellis (256, 128, 48) K=3 marker=-2082680531
+   LinearEXL3 mcg? False mul1? True K 3
+   forward (4, 2048) finite True std 1.2911
+   mcg-vs-mul1 relative difference: 1.671 (must be large)
+
+$ python3 t_fused.py 4
+layer 4: hidden=4096 intermediate=2048 K=2 experts=8
+Traceback (most recent call last):
+  File "/root/t_fused.py", line 51, in <module>
+    fus=OV.apply_exl3_experts(x,ids,wts,layer,fused=True)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/patched/exl3.py", line 562, in apply_exl3_experts
+    out = apply_exl3_fused_moe(x2d, ids, weights, layer, inners, expert_map, limit)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/patched/exl3.py", line 503, in apply_exl3_fused_moe
+    fn(*args)
+RuntimeError: MoE kernel: Only mcg codebook is currently supported
+
+$ python3 t_cover.py
+exllamav3 in image: 0.0.43 overlay pin: 0.0.43 c5d9c657966f
+config accepted: codebook=mul1 declared_bits=2.05 fallback_bits=2
+per-layer expert rate: 42 layers, Counter({2: 30, 3: 12})
+upgraded (3 bpw) layers: [3, 32, 33, 36, 37, 38, 39, 40, 41, 42, 43, 44]
+quantized (trellis) tensors by scope:
+    37152  routed experts (overlay implements)
+      172  vision tower
+      129  shared experts
+      128  attention projections
+        9  dense MLP (layers 0-2)
+        1  lm_head.trellis
+        1  model.language_model.layers.45.eh_proj.trellis

@@ -37,11 +37,19 @@ capacity, removing a host-syncing fat-expert fallback — +22.6 % at 4k). KV poo
 
 This kit serves the throughput artifact. The **M288-12L mosaic** is the quality artifact from the same
 model — 12 of 45 MoE layers at 3.05 bpw, best quality measured in the family (top-1 0.80842 vs 0.78902,
-KL −15.3 %, 32/32 panel rows) — and it **cannot run on this kit's runtime**: it is codebook `mul1`, and
-both MTP-capable overlays reject anything but `mcg` at config validation, before reading a weight. So it
-has no MTP here, and decodes at ~9–10 tok/s instead of 18.7–19.2.
+KL −15.3 %, 32/32 panel rows) — and it **does not yet run on this kit's runtime**: it is codebook
+`mul1`, and the MTP-capable overlays were written for `mcg` only. So it has no MTP here, and decodes at
+~9–10 tok/s instead of 18.7–19.2.
 
-It is one command away on its own runtime, with published, hash-pinned weights:
+The codebook gate is now gone: [`overlays/exl3-mul1/`](overlays/exl3-mul1/) is a drop-in overlay that
+accepts `mul1`, selects the matching trellis decode math, and sizes each layer from the mosaic's own
+mixed-rate ledger — verified on a GB10 against the published weights. Two blockers remain before the
+mosaic can serve with MTP: the image's pinned `exllamav3_ext` has no mul1 instances in its fused MoE
+kernel, and the mosaic also quantizes attention, dense MLP, shared experts, the vision tower and
+`lm_head`, which this runtime hands to `UnquantizedLinearMethod`. Blocker list with receipts:
+[overlays/exl3-mul1/README.md](overlays/exl3-mul1/README.md).
+
+Meanwhile the mosaic is one command away on its own runtime, with published, hash-pinned weights:
 
 ```bash
 ./start-mosaic.sh          # download (96 GB, verified) + census + serve on :8888
