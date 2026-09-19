@@ -6,10 +6,12 @@
 #   ./start-mosaic.sh serve        census + serve (assumes weights present)
 #
 # Why a separate script instead of start.sh: the mosaic is codebook `mul1` and
-# this kit's vLLM/MTP overlay only implements `mcg` — it refuses the model at
-# config validation ("this overlay only implements codebook=mcg; got 'mul1'").
-# The mosaic therefore runs on SGLang, without MTP, at ~9–10 tok/s decode in
-# exchange for the best quality in the family. Read docs/MOSAIC.md first.
+# this kit's vLLM/MTP runtime cannot serve it yet. The config gate is fixed
+# (overlays/exl3-mul1/), but the image's fused MoE kernel has no mul1
+# instances and the artifact's quantized attention / dense MLP / shared
+# experts / vision / lm_head have no loader in that runtime. The mosaic
+# therefore runs on SGLang, without MTP, at ~9–10 tok/s decode in exchange for
+# the best quality in the family. Read docs/MOSAIC.md first.
 #
 # Nothing here is guessed: the flags are the ones the mosaic's confirming run
 # (full G4 panel + MMLU/GPQA) was measured with.
