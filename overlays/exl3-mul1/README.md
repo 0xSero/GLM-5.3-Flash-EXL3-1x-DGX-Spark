@@ -39,6 +39,18 @@ Artifact: `0xSero/GLM-5.3-Flash-EXL3-Spark` @ `2642851741fc833764e77d03039117be5
 | `probe_mul1_linear.py` | `LinearEXL3` decodes both rates: layer 4 `trellis (256,128,32) K=2`, layer 3 `trellis (256,128,48) K=3`, finite output, and `mcg` on the same bytes differs by 1.6× — the codebook is math, not a label |
 | `probe_mul1_fused_moe.py` | the reference loop runs; the **fused kernel refuses**: `RuntimeError: MoE kernel: Only mcg codebook is currently supported` |
 
+## Bring-up on the runtime (2026-09-19)
+
+With `exl3.py` **and** `exl3_dequant.py` mounted, the kit's MTP recipe now gets the mosaic through
+model construction and into checkpoint loading: four distinct failures were traced and fixed
+(codebook gate, no loader for non-expert quantized tensors, the pre-fused KDA `qkv_proj`, and the
+average-vs-per-layer rate), after which the engine logged
+`EXL3: per-layer expert rate from quantization_config.json: {2: 30, 3: 12}` and loaded 7 of 12
+shards before the rented box was stopped for an empty account. It has **not** yet answered a
+request. Full log of each failure and what it actually was:
+[`../../docs/receipts/mosaic-mtp-bringup-20260919T120326Z.md`](../../docs/receipts/mosaic-mtp-bringup-20260919T120326Z.md).
+`serve-mosaic-mtp.sh` is the exact launch used (paths at the top).
+
 ## What still blocks MTP on the mosaic
 
 The codebook gate was the first blocker, not the last. Two remain, and neither

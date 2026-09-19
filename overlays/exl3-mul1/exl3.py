@@ -52,6 +52,19 @@ if TYPE_CHECKING:
 
 logger = init_logger(__name__)
 
+
+def install_non_expert_dequant() -> None:
+    """Install the non-expert reconstruction hook (see exl3_dequant.py)."""
+    try:
+        from vllm.model_executor.layers.quantization import exl3_dequant
+    except ImportError:  # sibling overlay not mounted
+        logger.warning(
+            "EXL3: exl3_dequant is not installed next to exl3.py; a fully "
+            "quantized artifact will fail at weight loading"
+        )
+        return
+    exl3_dequant.install()
+
 EXLLAMAV3_COMMIT = "c5d9c657966ffeeaa9353f0cc899f18629da4a13"
 EXLLAMAV3_VERSION = "0.0.43"
 MCG_MULTIPLIER = 0xCBAC1FED
@@ -614,6 +627,73 @@ def _layer_bits_from_ledger(ledger: Any) -> dict[int, int]:
     return bits
 
 
+def _ledger_from_model_dir() -> Any:
+    """`config.json`'s embedded quant block omits the per-tensor ledger.
+
+    The artifact still ships it as `quantization_config.json`; find that file
+    through the live model path so mixed-rate layers are sized correctly.
+    """
+    try:
+        from vllm.config import get_current_vllm_config
+
+        model = get_current_vllm_config().model_config.model
+    except Exception:  # noqa: BLE001 - best effort, absence is not fatal
+        return None
+    path = Path(model) / "quantization_config.json"
+    if not path.is_file():
+        return None
+    try:
+        import json
+
+        return json.loads(path.read_text()).get("tensor_storage")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("EXL3: could not read %s: %r", path, exc)
+        return None
+
+
+_LAYER_BITS_CACHE: dict[str, dict[int, int]] = {}
+
+
+def resolve_layer_bits() -> dict[int, int]:
+    """Per-layer expert rate, resolved from the live model directory.
+
+    `config.json`'s embedded quant block omits the per-tensor ledger, so the
+    rate of a mixed-precision artifact is only visible in the sidecar
+    `quantization_config.json` — or, failing that, in the trellis shapes
+    recorded in the safetensors index headers.
+    """
+    import json
+
+    try:
+        from vllm.config import get_current_vllm_config
+
+        model = str(get_current_vllm_config().model_config.model)
+    except Exception:  # noqa: BLE001 - absence is not fatal
+        return {}
+    cached = _LAYER_BITS_CACHE.get(model)
+    if cached is not None:
+        return cached
+    bits: dict[int, int] = {}
+    ledger_path = Path(model) / "quantization_config.json"
+    if ledger_path.is_file():
+        try:
+            bits = _layer_bits_from_ledger(
+                json.loads(ledger_path.read_text()).get("tensor_storage")
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("EXL3: could not read %s: %r", ledger_path, exc)
+    if bits:
+        logger.info(
+            "EXL3: per-layer expert rate from %s: %s",
+            ledger_path.name,
+            {b: sum(1 for v in bits.values() if v == b) for b in sorted(set(bits.values()))},
+        )
+    else:
+        logger.warning("EXL3: no per-layer rate ledger found under %s", model)
+    _LAYER_BITS_CACHE[model] = bits
+    return bits
+
+
 def _layer_index_from_prefix(prefix: str) -> int | None:
     match = _LAYER_IN_PREFIX.search(prefix or "")
     return int(match.group("layer")) if match else None
@@ -698,6 +778,10 @@ class Exl3Config(QuantizationConfig):
 
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> "Exl3Config":
+        # A fully quantized artifact (mosaic) also stores attention, dense MLP,
+        # shared experts, the vision tower and lm_head as EXL3. This runtime has
+        # no LinearMethod for those; the stream hook reconstructs them at load.
+        install_non_expert_dequant()
         skip = {
             "bits",
             "codebook",
@@ -714,7 +798,9 @@ class Exl3Config(QuantizationConfig):
             codebook=str(config.get("codebook", "mcg")),
             scope=str(config.get("scope", "glm53_routed_experts_only")),
             rank_stacked_tp=config.get("rank_stacked_tp"),
-            layer_bits=_layer_bits_from_ledger(config.get("tensor_storage")),
+            layer_bits=_layer_bits_from_ledger(
+                config.get("tensor_storage") or _ledger_from_model_dir()
+            ),
             **{k: v for k, v in config.items() if k not in skip},
         )
 
@@ -732,6 +818,10 @@ class Exl3Config(QuantizationConfig):
 
     def get_quant_method(self, layer: torch.nn.Module, prefix: str):
         from vllm.model_executor.layers.fused_moe.routed_experts import RoutedExperts
+
+        # Engine-core processes receive a deserialized config, so `from_config`
+        # never runs there; install from the first quant-method lookup too.
+        install_non_expert_dequant()
 
         if isinstance(layer, RoutedExperts):
             return Exl3MoEMethod(layer.moe_config, self, prefix=prefix)
@@ -753,6 +843,11 @@ class Exl3MoEMethod(FusedMoEMethodBase):
         self.prefix = prefix
         self.layer_index = _layer_index_from_prefix(prefix)
         self.bits = quant_config.bits_for_layer(self.layer_index)
+        if not quant_config.layer_bits:
+            resolved = resolve_layer_bits()
+            if resolved:
+                quant_config.layer_bits = resolved
+                self.bits = quant_config.bits_for_layer(self.layer_index)
         self.codebook = quant_config.codebook
         self._logged = False
 
